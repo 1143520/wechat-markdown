@@ -26,175 +26,68 @@ export default function WechatToMarkdown() {
     // Remove script and style tags completely
     markdown = markdown.replace(/<script[^>]*>.*?<\/script>/gis, "");
     markdown = markdown.replace(/<style[^>]*>.*?<\/style>/gis, "");
-    
-    // Handle WeChat-specific components
-    // Remove WeChat profile components but keep a placeholder
-    markdown = markdown.replace(/<mp-common-profile[^>]*data-nickname=["']([^"']*)["'][^>]*><\/mp-common-profile>/gi, "\n\n---\n**关注公众号：$1**\n---\n\n");
-    markdown = markdown.replace(/<section[^>]*class="mp_profile_iframe_wrp"[^>]*>.*?<\/section>/gis, "");
-    
-    // Remove unwanted attributes but preserve some useful ones temporarily
-    markdown = markdown.replace(/\s(style|id|data-[^=]*|class(?!="list-paddingleft-[12]"))="[^"]*"/gi, "");
-    
-    // Handle WeChat dark mode classes
-    markdown = markdown.replace(/\sclass="js_darkmode__\d+"/gi, "");
+    // Remove unwanted attributes
+    markdown = markdown.replace(/\s(style|class|id)="[^"]*"/gi, "");
 
-    // 2. Structural Tag Conversion
-    // Handle WeChat's nested list structure first (preserve list classes temporarily)
-    // Convert divs and sections used for structure into paragraphs, but preserve list containers
-    markdown = markdown.replace(/<(div|section)(?![^>]*class="list-paddingleft-[12]")[^>]*>/gi, "<p>");
+    // 2. Structural Tag Conversion (Normalize common container tags)
+    // Convert divs and sections used for structure into paragraphs
+    markdown = markdown.replace(/<(div|section)[^>]*>/gi, "<p>");
     markdown = markdown.replace(/<\/(div|section)>/gi, "</p>");
 
     // 3. Block-Level Element Conversion
-    // Headings with better content cleaning
+    // Headings (h1-h6) - Preserve inner formatting by converting it later
     markdown = markdown.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, content) => {
-      // Clean inner HTML but preserve text formatting
-      const cleanContent = content
-        .replace(/<span[^>]*>(.*?)<\/span>/gi, "$1")
-        .replace(/<strong[^>]*>(.*?)<\/strong>/gi, "**$1**")
-        .replace(/<em[^>]*>(.*?)<\/em>/gi, "*$1*")
-        .replace(/<[^>]+>/g, "")
-        .trim();
-      return "\n\n" + "#".repeat(Number.parseInt(level)) + " " + cleanContent + "\n\n";
+      return "\n\n" + "#".repeat(Number.parseInt(level)) + " " + content.trim() + "\n\n";
     });
 
-    // Enhanced List Processing with proper nesting support
-    // Process nested lists by handling the structure more carefully
-    const processNestedLists = (content: string): string => {
-      // First pass: convert nested ul/ol inside li elements
-      content = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
-        // Check if this li contains nested lists
-        const hasNestedList = /<[ou]l[^>]*>/i.test(liContent);
-        if (hasNestedList) {
-          // Split content before and after nested list
-          const parts = liContent.split(/(<[ou]l[^>]*>.*?<\/[ou]l>)/gis);
-          let result = "";
-          parts.forEach((part, index) => {
-            if (/<[ou]l[^>]*>/i.test(part)) {
-              // This is a nested list, process it with indentation
-              const nestedList = part.replace(/<li[^>]*>(.*?)<\/li>/gis, (nestedLi, nestedContent) => {
-                return `\n  - ${nestedContent.replace(/<[^>]+>/g, "").trim()}`;
-              });
-              result += nestedList.replace(/<[^>]+>/g, "");
-            } else {
-              // Regular content
-              result += part.replace(/<[^>]+>/g, "").trim();
-            }
-          });
-          return `\n- ${result}`;
-        } else {
-          // Simple list item
-          return `\n- ${liContent.replace(/<[^>]+>/g, "").trim()}`;
-        }
-      });
-      return content;
-    };
-
-    // Unordered Lists with nesting support
-    markdown = markdown.replace(/<ul[^>]*class="list-paddingleft-[12]"[^>]*>(.*?)<\/ul>/gis, (match, content) => {
-      const processedContent = processNestedLists(content);
-      return processedContent + "\n\n";
-    });
-
-    // Regular unordered lists
-    markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, content) => {
-      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
-        return `\n- ${liContent.replace(/<[^>]+>/g, "").trim()}`;
-      });
-      return items + "\n\n";
-    });
-
-    // Ordered Lists with nesting support
-    markdown = markdown.replace(/<ol[^>]*class="list-paddingleft-[12]"[^>]*>(.*?)<\/ol>/gis, (match, content) => {
-      let counter = 1;
-      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
-        // Check for nested lists in ordered lists too
-        const hasNestedList = /<[ou]l[^>]*>/i.test(liContent);
-        if (hasNestedList) {
-          const parts = liContent.split(/(<[ou]l[^>]*>.*?<\/[ou]l>)/gis);
-          let result = "";
-          parts.forEach((part) => {
-            if (/<[ou]l[^>]*>/i.test(part)) {
-              const nestedList = part.replace(/<li[^>]*>(.*?)<\/li>/gis, (nestedLi, nestedContent) => {
-                return `\n   - ${nestedContent.replace(/<[^>]+>/g, "").trim()}`;
-              });
-              result += nestedList.replace(/<[^>]+>/g, "");
-            } else {
-              result += part.replace(/<[^>]+>/g, "").trim();
-            }
-          });
-          return `\n${counter++}. ${result}`;
-        } else {
-          return `\n${counter++}. ${liContent.replace(/<[^>]+>/g, "").trim()}`;
-        }
-      });
-      return items + "\n\n";
-    });
-
-    // Regular ordered lists
-    markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
-      let counter = 1;
-      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
-        return `\n${counter++}. ${liContent.replace(/<[^>]+>/g, "").trim()}`;
-      });
-      return items + "\n\n";
-    });
-
-    // Paragraphs with better content handling
+    // Paragraphs - Ensure they are separated by newlines
     markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gis, (match, content) => {
-      // Skip empty paragraphs and those that only contain images
-      const textContent = content.replace(/<img[^>]*>/gi, "").replace(/<[^>]+>/g, "").trim();
-      if (!textContent) return content.includes("<img") ? "\n\n" + content + "\n\n" : "";
-      
-      // Clean content but preserve some formatting
-      const cleanContent = content
-        .replace(/<span[^>]*>(.*?)<\/span>/gi, "$1")
-        .replace(/<font[^>]*>(.*?)<\/font>/gi, "$1")
-        .trim();
-      
-      return cleanContent ? "\n\n" + cleanContent + "\n\n" : "";
+      // Only add newlines if the paragraph is not empty
+      return content.trim() ? "\n\n" + content.trim() + "\n\n" : "";
     });
 
-    // Enhanced Blockquotes
+    // Blockquotes
     markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, (match, content) => {
-      const cleanContent = content.replace(/<[^>]+>/g, "").trim();
-      if (!cleanContent) return "";
-      
-      const lines = cleanContent.split('\n').filter(line => line.trim());
-      return "\n\n" + lines.map(line => `> ${line.trim()}`).join('\n') + "\n\n";
+        // Process each line inside the blockquote
+        const lines = content.trim().split('\n');
+        return "\n\n" + lines.map(line => `> ${line}`).join('\n') + "\n\n";
+    });
+
+    // Unordered Lists
+    markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, content) => {
+        const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
+            return `\n- ${liContent.trim()}`;
+        });
+        return items + "\n\n";
+    });
+
+    // Ordered Lists
+    markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
+        let counter = 1;
+        const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
+            return `\n${counter++}. ${liContent.trim()}`;
+        });
+        return items + "\n\n";
     });
 
     // Code Blocks
     markdown = markdown.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gis, (match, content) => {
-      const cleanContent = content
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
-        .trim();
-      return "\n\n```\n" + cleanContent + "\n```\n\n";
+      const cleanContent = content.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+      return "\n\n```\n" + cleanContent.trim() + "\n```\n\n";
     });
     
-    // Enhanced Tables
+    // Tables
     markdown = markdown.replace(/<table[^>]*>(.*?)<\/table>/gis, (match, content) => {
       let tableMarkdown = "\n";
       const rows = content.match(/<tr[^>]*>(.*?)<\/tr>/gis) || [];
-      
-      if (rows.length === 0) return "";
-      
       rows.forEach((row, index) => {
         const cells = row.match(/<t[hd][^>]*>(.*?)<\/t[hd]>/gis) || [];
-        const cellContents = cells.map(cell => {
-          const cellContent = cell
-            .replace(/<t[hd][^>]*>(.*?)<\/t[hd]>/i, "$1")
-            .replace(/<[^>]+>/g, "")
-            .trim();
-          return cellContent || " ";
-        });
-        
-        if (cellContents.length > 0) {
-          tableMarkdown += "| " + cellContents.join(" | ") + " |\n";
-          if (index === 0) {
-            tableMarkdown += "| " + cellContents.map(() => "---").join(" | ") + " |\n";
-          }
+        const cellContents = cells.map(cell =>
+          cell.replace(/<t[hd][^>]*>(.*?)<\/t[hd]>/i, "$1").trim()
+        );
+        tableMarkdown += "| " + cellContents.join(" | ") + " |\n";
+        if (index === 0) {
+          tableMarkdown += "| " + cellContents.map(() => "---").join(" | ") + " |\n";
         }
       });
       return tableMarkdown + "\n";
@@ -206,93 +99,52 @@ export default function WechatToMarkdown() {
     // Line breaks
     markdown = markdown.replace(/<br\s*\/?>/gi, "\n");
 
-    // 4. Inline Element Conversion
-    // Enhanced Images with better alt text handling
+    // 4. Inline Element Conversion (Done after blocks to preserve them)
+    // Images with proxy
     markdown = markdown.replace(
       /<img[^>]*src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi,
       (match, src, alt) => {
-        // Skip placeholder images and data URIs
-        if (src.includes("data:image/svg+xml") || src.includes("placeholder")) {
-          return "";
-        }
-        
         if (src.includes("image.baidu.com")) {
-          return `![${alt || "图片"}](${src})`;
+          return `![${alt || ""}](${src})`;
         }
         const proxyUrl = `https://image.baidu.com/search/down?thumburl=${encodeURIComponent(src)}`;
-        return `![${alt || "图片"}](${proxyUrl})`;
+        return `![${alt || ""}](${proxyUrl})`;
       },
     );
 
-    // Links with better text handling
-    markdown = markdown.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (match, href, text) => {
-      const cleanText = text.replace(/<[^>]+>/g, "").trim();
-      return cleanText ? `[${cleanText}](${href})` : "";
-    });
+    // Links
+    markdown = markdown.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, "[$2]($1)");
 
     // Bold and Strong
     markdown = markdown.replace(/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/gi, "**$2**");
     
-    // Italic and Emphasis  
+    // Italic and Emphasis
     markdown = markdown.replace(/<(em|i)[^>]*>(.*?)<\/(em|i)>/gi, "*$2*");
     
     // Inline Code
     markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, (match, content) => {
-      const cleanContent = content
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&");
-      return `\`${cleanContent}\``;
+      return `\`${content.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")}\``;
     });
 
     // 5. Final Cleanup
     // Remove any remaining HTML tags
     markdown = markdown.replace(/<[^>]+>/g, "");
 
-    // Enhanced HTML entities decoding
+    // Decode HTML entities
     const htmlEntities: { [key: string]: string } = {
       "&nbsp;": " ", "&lt;": "<", "&gt;": ">", "&amp;": "&", "&quot;": '"',
       "&#39;": "'", "&ldquo;": '"', "&rdquo;": '"', "&lsquo;": "'", "&rsquo;": "'",
-      "&mdash;": "—", "&ndash;": "–", "&hellip;": "…", "&copy;": "©", "&reg;": "®", 
-      "&trade;": "™", "&bull;": "•", "&middot;": "·", "&sect;": "§", "&para;": "¶",
-      "&dagger;": "†", "&Dagger;": "‡", "&permil;": "‰", "&lsaquo;": "‹", "&rsaquo;": "›",
-      "&#8203;": "", // Zero-width space
+      "&mdash;": "—", "&ndash;": "–", "&hellip;": "…", "&copy;": "©",
+      "&reg;": "®", "&trade;": "™",
     };
-    
     Object.entries(htmlEntities).forEach(([entity, char]) => {
       markdown = markdown.replace(new RegExp(entity, "g"), char);
     });
 
-    // Advanced whitespace normalization
-    // Remove excessive spaces
-    markdown = markdown.replace(/[ \t]+/g, " ");
-    
-    // Fix spacing around formatting
-    markdown = markdown.replace(/\*\*\s+/g, "**");
-    markdown = markdown.replace(/\s+\*\*/g, "**");
-    markdown = markdown.replace(/\*\s+/g, "*");
-    markdown = markdown.replace(/\s+\*/g, "*");
-    
-    // Normalize newlines
-    markdown = markdown.replace(/\n{4,}/g, "\n\n\n");
-    markdown = markdown.replace(/\n{3}/g, "\n\n");
-    
-    // Ensure proper spacing around headers
-    markdown = markdown.replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2");
-    markdown = markdown.replace(/(#{1,6}\s[^\n]+)\n([^\n#])/g, "$1\n\n$2");
-    
-    // Ensure proper spacing around lists
-    markdown = markdown.replace(/([^\n])\n([*\-+]|\d+\.)\s/g, "$1\n\n$2 ");
-    markdown = markdown.replace(/([*\-+]|\d+\.)\s[^\n]+\n([^\n*\-+\d\s])/g, "$&\n$2");
-    
-    // Clean up multiple consecutive formatting marks
-    markdown = markdown.replace(/\*{3,}/g, "**");
-    markdown = markdown.replace(/_{3,}/g, "__");
-    
-    // Remove trailing spaces
-    markdown = markdown.replace(/[ \t]+$/gm, "");
-    
-    // Final trim
+    // Normalize whitespace
+    // Replace multiple newlines with a maximum of two
+    markdown = markdown.replace(/\n{3,}/g, "\n\n");
+    // Trim leading/trailing whitespace from the entire string
     markdown = markdown.trim();
 
     return markdown;
