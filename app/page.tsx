@@ -200,21 +200,8 @@ export default function WechatToMarkdown() {
     // Horizontal Rules
     markdown = markdown.replace(/<hr[^>]*>/gi, "\n\n---\n\n");
     
-    // Line breaks - enhanced handling for WeChat articles
+    // Line breaks
     markdown = markdown.replace(/<br\s*\/?>/gi, "\n");
-    
-    // Handle div and span as potential line breaks in WeChat articles
-    markdown = markdown.replace(/<\/div>\s*<div[^>]*>/gi, "\n");
-    markdown = markdown.replace(/<div[^>]*>/gi, "\n");
-    markdown = markdown.replace(/<\/div>/gi, "\n");
-    
-    // Handle span tags that should create line breaks
-    markdown = markdown.replace(/<\/span>\s*<span[^>]*>/gi, "\n");
-    
-    // Handle p tags that might be missing
-    markdown = markdown.replace(/<\/p>\s*<p[^>]*>/gi, "\n\n");
-    markdown = markdown.replace(/<p[^>]*>/gi, "\n");
-    markdown = markdown.replace(/<\/p>/gi, "\n");
 
     // 4. Inline Element Conversion (Done after blocks to preserve them)
     // Images with proxy
@@ -253,18 +240,6 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/nodeleaf="[^"]*"/gi, "");
     markdown = markdown.replace(/leaf="[^"]*"/gi, "");
     
-    // Clean up excessive asterisks and formatting artifacts
-    // Remove standalone asterisks on their own lines
-    markdown = markdown.replace(/^\s*\*+\s*$/gm, "");
-    // Remove multiple consecutive asterisks (but preserve **bold** and *italic*)
-    markdown = markdown.replace(/\*{4,}/g, "**");
-    // Clean up patterns like "****text****" to "**text**"
-    markdown = markdown.replace(/\*{3,}([^*]+)\*{3,}/g, "**$1**");
-    // Remove isolated asterisks (not part of formatting)
-    markdown = markdown.replace(/\s\*+\s/g, " ");
-    markdown = markdown.replace(/^\*+\s/gm, "");
-    markdown = markdown.replace(/\s\*+$/gm, "");
-    
     // Remove excessive whitespace and empty lines from complex layouts
     markdown = markdown.replace(/^\s*$/gm, ""); // Remove empty lines
     markdown = markdown.replace(/\n\s*\n\s*\n/g, "\n\n"); // Collapse multiple newlines
@@ -292,34 +267,42 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/^\s*["""'']\s*$/gm, ""); // Remove standalone quotes
     markdown = markdown.replace(/^\s*[～〜~]\s*$/gm, ""); // Remove decorative tildes
     
-    // Additional asterisk cleanup - more aggressive
-    // Remove asterisks that appear in isolation or in weird patterns
-    markdown = markdown.replace(/\*+\s*\*+/g, ""); // Remove patterns like "** **" or "* *"
-    markdown = markdown.replace(/\s\*+\s/g, " "); // Remove asterisks surrounded by spaces
-    markdown = markdown.replace(/\*+\n/g, "\n"); // Remove asterisks at end of lines
+    // Clean up excessive asterisks and formatting artifacts
+    // Remove standalone asterisks on their own lines
+    markdown = markdown.replace(/^\s*\*+\s*$/gm, "");
     
-    // Clean up broken formatting
-    markdown = markdown.replace(/\*\*\*\*/g, "**"); // Reduce quadruple asterisks to double
-    markdown = markdown.replace(/\*\*\s+\*\*/g, ""); // Remove empty bold tags
+    // Remove excessive asterisks in text (more than 4 consecutive)
+    markdown = markdown.replace(/\*{5,}/g, "**");
     
-    // Enhanced text flow and line break optimization
-    // Add line breaks after certain patterns that should be separate lines
-    markdown = markdown.replace(/([.!?。！？])\s*([A-Z\u4e00-\u9fff])/g, "$1\n\n$2");
+    // Clean up malformed bold formatting
+    markdown = markdown.replace(/\*\*\*\*([^*]+)\*\*\*\*/g, "**$1**");
+    markdown = markdown.replace(/\*\*\*([^*]+)\*\*\*/g, "**$1**");
     
-    // Ensure proper spacing around Chinese and English mixed content
-    markdown = markdown.replace(/([a-zA-Z])\s*([你我他她它们的是在有了都会可以这那什么怎么为什么])/g, "$1 $2");
-    markdown = markdown.replace(/([你我他她它们的是在有了都会可以这那什么怎么为什么])\s*([a-zA-Z])/g, "$1 $2");
+    // Remove asterisks that are just decorative (not formatting)
+    // But preserve meaningful formatting like **text**
+    markdown = markdown.replace(/\*{6,}/g, ""); // Remove 6+ consecutive asterisks
     
-    // Fix song lyrics and dialogue - ensure each line is separate
-    markdown = markdown.replace(/([a-zA-Z][a-zA-Z\s',.-]+)\s*([你我他她它们][^a-zA-Z]*)/g, "$1\n\n$2");
-    markdown = markdown.replace(/([你我他她它们][^a-zA-Z]*)\s*([A-Z][a-zA-Z\s',.-]+)/g, "$1\n\n$2");
+    // Clean up specific patterns from your example
+    markdown = markdown.replace(/\*\*\*\*([^*\n]+)\*\*\*\*/g, "**$1**"); // ****text**** -> **text**
+    markdown = markdown.replace(/\*\*([^*\n]*?)\*\*\*\*([^*\n]*?)\*\*\*\*([^*\n]*?)\*\*/g, "**$1$2$3**"); // Complex patterns
     
-    // Ensure headings and sections have proper spacing
-    markdown = markdown.replace(/^([^#\n>*-].*[：:])\s*$/gm, "**$1**\n");
+    // Clean up empty bold/italic tags
+    markdown = markdown.replace(/\*\*\s*\*\*/g, "");
+    markdown = markdown.replace(/\*\s*\*/g, "");
+    
+    // Handle the specific pattern from your example: **text****other****text**
+    // Convert to proper bold formatting
+    markdown = markdown.replace(/\*\*([^*]+?)\*\*\*\*([^*]+?)\*\*\*\*([^*]+?)\*\*/g, "**$1** **$2** **$3**");
+    markdown = markdown.replace(/\*\*([^*]+?)\*\*\*\*([^*]+?)\*\*/g, "**$1** **$2**");
+    
+    // Remove standalone asterisks that are not part of markdown formatting
+    markdown = markdown.replace(/^(\s*)\*+(\s*)$/gm, "$1$2");
+    
+    // Clean up patterns like "****" at the beginning of lines
+    markdown = markdown.replace(/^\*{2,}/gm, "");
     
     // Final cleanup of excessive newlines
-    markdown = markdown.replace(/\n{4,}/g, "\n\n");
-    markdown = markdown.replace(/\n{3}/g, "\n\n");
+    markdown = markdown.replace(/\n{3,}/g, "\n\n");
 
     return markdown;
   }
