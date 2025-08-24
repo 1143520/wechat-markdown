@@ -22,15 +22,8 @@ export default function WechatToMarkdown() {
   const htmlToMarkdown = (html: string): string => {
     let markdown = html;
 
-    // 1. Pre-processing and Sanitization
-    // Remove script and style tags completely
-    markdown = markdown.replace(/<script[^>]*>.*?<\/script>/gis, "");
-    markdown = markdown.replace(/<style[^>]*>.*?<\/style>/gis, "");
-    // Remove unwanted attributes
-    markdown = markdown.replace(/\s(style|class|id)="[^"]*"/gi, "");
-
-    // 1.5. Handle WeChat-specific components BEFORE structural conversion
-    // Extract audio info first, then remove the tags
+    // 1. Pre-processing: Handle WeChat multimedia components FIRST (before any cleanup)
+    // Extract and replace audio components
     let audioMatches = html.match(/<mp-common-mpaudio[^>]*>/gi);
     if (audioMatches) {
       audioMatches.forEach(match => {
@@ -43,21 +36,41 @@ export default function WechatToMarkdown() {
           `\n\n🎵 **音频**：${name}\n\n`;
         markdown = markdown.replace(match, replacement);
       });
+    } else {
+      // Fallback: look for any mention of mp-common-mpaudio
+      if (html.includes('mp-common-mpaudio')) {
+        markdown = markdown.replace(/mp-common-mpaudio[^>]*>/gi, '\n\n🎵 **检测到音频组件**\n\n');
+      }
     }
     
-    // Remove any remaining mp-common-mpaudio tags
+    // Extract and replace video components
+    let videoMatches = html.match(/<iframe[^>]*src=["'][^"']*v\.qq\.com[^"']*["'][^>]*>/gi);
+    if (videoMatches) {
+      videoMatches.forEach(match => {
+        const srcMatch = match.match(/src=["']([^"']+)["']/i);
+        const src = srcMatch ? srcMatch[1] : '';
+        markdown = markdown.replace(match, `\n\n📹 **视频**：${src}\n\n`);
+      });
+    }
+    
+    // Handle video containers
+    markdown = markdown.replace(/<span[^>]*class="js_tx_video_container"[^>]*>.*?<\/span>/gi, '\n\n📹 **视频播放器**\n\n');
+    
+    // Remove any remaining multimedia tags
     markdown = markdown.replace(/<\/?mp-common-mpaudio[^>]*>/gi, '');
+    markdown = markdown.replace(/点击边框调出视频工具条/gi, '');
 
-    // Handle video iframes
+    // 1.5. Sanitization
+    // Remove script and style tags completely
+    markdown = markdown.replace(/<script[^>]*>.*?<\/script>/gis, "");
+    markdown = markdown.replace(/<style[^>]*>.*?<\/style>/gis, "");
+    // Remove unwanted attributes (but keep some for multimedia detection)
+    markdown = markdown.replace(/\s(style|id)="[^"]*"/gi, "");
+
+    // Additional iframe handling (fallback)
     markdown = markdown.replace(
       /<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/gi,
       '\n\n📹 **视频**：$1\n\n'
-    );
-    
-    // Handle video containers
-    markdown = markdown.replace(
-      /<span[^>]*class="js_tx_video_container"[^>]*>/gi,
-      '\n\n📹 **视频播放器**\n\n'
     );
 
     // Handle WeChat profile components
