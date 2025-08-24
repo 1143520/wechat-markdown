@@ -29,10 +29,34 @@ export default function WechatToMarkdown() {
       audioMatches.forEach(match => {
         const nameMatch = match.match(/name=["']([^"']+)["']/i);
         const lengthMatch = match.match(/play_length=["']([^"']+)["']/i);
-        const name = nameMatch ? nameMatch[1] : '未知音频';
-        const length = lengthMatch ? lengthMatch[1] : '';
-        const replacement = length ? 
-          `\n\n🎵 **音频**：${name} (${length})\n\n` : 
+        const durationMatch = match.match(/duration=["']([^"']+)["']/i);
+        
+        let name = nameMatch ? nameMatch[1] : '音频';
+        let duration = '';
+        
+        // Handle different duration formats
+        if (lengthMatch) {
+          const lengthValue = lengthMatch[1];
+          // Convert milliseconds to time format if needed
+          if (lengthValue.match(/^\d+$/)) {
+            const seconds = Math.floor(parseInt(lengthValue) / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            duration = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+          } else {
+            duration = lengthValue;
+          }
+        } else if (durationMatch) {
+          duration = durationMatch[1];
+        }
+        
+        // Clean up technical names
+        if (name === 'insertaudio' || name.includes('plugin')) {
+          name = '音频内容';
+        }
+        
+        const replacement = duration ? 
+          `\n\n🎵 **音频**：${name} (${duration})\n\n` : 
           `\n\n🎵 **音频**：${name}\n\n`;
         markdown = markdown.replace(match, replacement);
       });
@@ -48,8 +72,15 @@ export default function WechatToMarkdown() {
     if (videoMatches) {
       videoMatches.forEach(match => {
         const srcMatch = match.match(/src=["']([^"']+)["']/i);
+        const vidMatch = match.match(/vid=([^&"']+)/i);
         const src = srcMatch ? srcMatch[1] : '';
-        markdown = markdown.replace(match, `\n\n📹 **视频**：${src}\n\n`);
+        const videoId = vidMatch ? vidMatch[1] : '';
+        
+        const videoInfo = videoId ? 
+          `\n\n📹 **腾讯视频**：${videoId}\n\n视频链接：${src}\n\n` :
+          `\n\n📹 **视频**：${src}\n\n`;
+        
+        markdown = markdown.replace(match, videoInfo);
       });
     }
     
