@@ -240,6 +240,18 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/nodeleaf="[^"]*"/gi, "");
     markdown = markdown.replace(/leaf="[^"]*"/gi, "");
     
+    // Clean up excessive asterisks and formatting artifacts
+    // Remove standalone asterisks on their own lines
+    markdown = markdown.replace(/^\s*\*+\s*$/gm, "");
+    // Remove multiple consecutive asterisks (but preserve **bold** and *italic*)
+    markdown = markdown.replace(/\*{4,}/g, "**");
+    // Clean up patterns like "****text****" to "**text**"
+    markdown = markdown.replace(/\*{3,}([^*]+)\*{3,}/g, "**$1**");
+    // Remove isolated asterisks (not part of formatting)
+    markdown = markdown.replace(/\s\*+\s/g, " ");
+    markdown = markdown.replace(/^\*+\s/gm, "");
+    markdown = markdown.replace(/\s\*+$/gm, "");
+    
     // Remove excessive whitespace and empty lines from complex layouts
     markdown = markdown.replace(/^\s*$/gm, ""); // Remove empty lines
     markdown = markdown.replace(/\n\s*\n\s*\n/g, "\n\n"); // Collapse multiple newlines
@@ -266,6 +278,16 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/^\s*[•·▪▫◦‣⁃]\s*$/gm, ""); // Remove bullet points on their own lines
     markdown = markdown.replace(/^\s*["""'']\s*$/gm, ""); // Remove standalone quotes
     markdown = markdown.replace(/^\s*[～〜~]\s*$/gm, ""); // Remove decorative tildes
+    
+    // Additional asterisk cleanup - more aggressive
+    // Remove asterisks that appear in isolation or in weird patterns
+    markdown = markdown.replace(/\*+\s*\*+/g, ""); // Remove patterns like "** **" or "* *"
+    markdown = markdown.replace(/\s\*+\s/g, " "); // Remove asterisks surrounded by spaces
+    markdown = markdown.replace(/\*+\n/g, "\n"); // Remove asterisks at end of lines
+    
+    // Clean up broken formatting
+    markdown = markdown.replace(/\*\*\*\*/g, "**"); // Reduce quadruple asterisks to double
+    markdown = markdown.replace(/\*\*\s+\*\*/g, ""); // Remove empty bold tags
     
     // Final cleanup of excessive newlines
     markdown = markdown.replace(/\n{3,}/g, "\n\n");
