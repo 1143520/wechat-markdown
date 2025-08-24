@@ -29,7 +29,49 @@ export default function WechatToMarkdown() {
     // Remove unwanted attributes
     markdown = markdown.replace(/\s(style|class|id)="[^"]*"/gi, "");
 
+    // 1.5. Handle WeChat-specific components BEFORE structural conversion
+    // Handle WeChat audio components
+    markdown = markdown.replace(
+      /<mp-common-mpaudio[^>]*name=["']([^"']+)["'][^>]*play_length=["']([^"']+)["'][^>]*>/gi,
+      '\n\n🎵 **音频**：$1 ($2)\n\n'
+    );
+
+    // Handle video iframes
+    markdown = markdown.replace(
+      /<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/gi,
+      '\n\n📹 **视频**：$1\n\n'
+    );
+
+    // Handle WeChat profile components
+    markdown = markdown.replace(
+      /<mp-common-profile[^>]*data-nickname=["']([^"']+)["'][^>]*>/gi,
+      '\n\n👤 **微信号**：$1\n\n'
+    );
+
+    // Remove decorative elements (dots, spans used for styling)
+    markdown = markdown.replace(
+      /<span[^>]*width:\s*\d+px[^>]*height:\s*\d+px[^>]*border-radius:\s*50%[^>]*><\/span>/gi,
+      ''
+    );
+
+    // Handle WeChat layout containers and remove empty containers
+    markdown = markdown.replace(/<section[^>]*powered-by="xiumi\.us"[^>]*><\/section>/gi, "");
+    markdown = markdown.replace(/<section[^>]*><svg[^>]*><\/svg><\/section>/gi, "");
+    
+    // Handle text decoration spans (underline, strikethrough)
+    markdown = markdown.replace(/<span[^>]*text-decoration:\s*underline[^>]*>(.*?)<\/span>/gi, "$1");
+    markdown = markdown.replace(/<span[^>]*text-decoration:\s*line-through[^>]*>(.*?)<\/span>/gi, "~~$1~~");
+    
+    // Clean up excessive nesting in WeChat articles
+    markdown = markdown.replace(/<p[^>]*><span[^>]*><span[^>]*>(.*?)<\/span><\/span><\/p>/gi, "$1\n\n");
+
     // 2. Structural Tag Conversion (Normalize common container tags)
+    // Handle complex nested sections with inline-block layout
+    markdown = markdown.replace(
+      /<section[^>]*display:\s*inline-block[^>]*width:\s*\d+%[^>]*>(.*?)<\/section>/gis,
+      '$1\n\n'
+    );
+    
     // Convert divs and sections used for structure into paragraphs
     markdown = markdown.replace(/<(div|section)[^>]*>/gi, "<p>");
     markdown = markdown.replace(/<\/(div|section)>/gi, "</p>");
@@ -130,6 +172,16 @@ export default function WechatToMarkdown() {
     // Remove any remaining HTML tags
     markdown = markdown.replace(/<[^>]+>/g, "");
 
+    // Clean up WeChat-specific artifacts
+    // Remove powered-by attributes and other WeChat artifacts
+    markdown = markdown.replace(/powered-by="[^"]*"/gi, "");
+    markdown = markdown.replace(/nodeleaf="[^"]*"/gi, "");
+    markdown = markdown.replace(/leaf="[^"]*"/gi, "");
+    
+    // Remove excessive whitespace and empty lines from complex layouts
+    markdown = markdown.replace(/^\s*$/gm, ""); // Remove empty lines
+    markdown = markdown.replace(/\n\s*\n\s*\n/g, "\n\n"); // Collapse multiple newlines
+
     // Decode HTML entities
     const htmlEntities: { [key: string]: string } = {
       "&nbsp;": " ", "&lt;": "<", "&gt;": ">", "&amp;": "&", "&quot;": '"',
@@ -146,6 +198,15 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/\n{3,}/g, "\n\n");
     // Trim leading/trailing whitespace from the entire string
     markdown = markdown.trim();
+
+    // Post-processing: Clean up artifacts from complex WeChat layouts
+    // Remove standalone symbols and decorative text
+    markdown = markdown.replace(/^\s*[•·▪▫◦‣⁃]\s*$/gm, ""); // Remove bullet points on their own lines
+    markdown = markdown.replace(/^\s*["""'']\s*$/gm, ""); // Remove standalone quotes
+    markdown = markdown.replace(/^\s*[～〜~]\s*$/gm, ""); // Remove decorative tildes
+    
+    // Final cleanup of excessive newlines
+    markdown = markdown.replace(/\n{3,}/g, "\n\n");
 
     return markdown;
   }
