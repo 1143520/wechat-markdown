@@ -120,21 +120,6 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/<section[^>]*powered-by="xiumi\.us"[^>]*><\/section>/gi, "");
     markdown = markdown.replace(/<section[^>]*><svg[^>]*><\/svg><\/section>/gi, "");
     
-    // Handle special quote sections (like the lyrics container)
-    markdown = markdown.replace(
-      /<section[^>]*background-color:\s*rgb\(203,\s*222,\s*255\)[^>]*>(.*?)<\/section>/gis,
-      '\n\n> **歌词欣赏**\n\n> $1\n\n'
-    );
-    
-    // Handle the quote mark decoration
-    markdown = markdown.replace(/<section[^>]*font-size:\s*64px[^>]*>"<\/section>/gi, '\n\n---\n\n');
-    
-    // Convert special containers to proper sections
-    markdown = markdown.replace(
-      /<section[^>]*display:\s*inline-block[^>]*border[^>]*>(.*?)<\/section>/gis,
-      '\n\n### $1\n\n'
-    );
-    
     // Handle text decoration spans (underline, strikethrough)
     markdown = markdown.replace(/<span[^>]*text-decoration:\s*underline[^>]*>(.*?)<\/span>/gi, "$1");
     markdown = markdown.replace(/<span[^>]*text-decoration:\s*line-through[^>]*>(.*?)<\/span>/gi, "~~$1~~");
@@ -219,13 +204,6 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/<br\s*\/?>/gi, "\n");
 
     // 4. Inline Element Conversion (Done after blocks to preserve them)
-    // Handle text decorations BEFORE removing spans
-    // Strikethrough (删除线)
-    markdown = markdown.replace(/<span[^>]*text-decoration:\s*line-through[^>]*>(.*?)<\/span>/gi, "~~$1~~");
-    
-    // Underline - convert to bold since Markdown doesn't support underline
-    markdown = markdown.replace(/<span[^>]*text-decoration:\s*underline[^>]*>(.*?)<\/span>/gi, "**$1**");
-    
     // Images with proxy
     markdown = markdown.replace(
       /<img[^>]*src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi,
@@ -241,7 +219,7 @@ export default function WechatToMarkdown() {
     // Links
     markdown = markdown.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, "[$2]($1)");
 
-    // Bold and Strong (handle nested spans)
+    // Bold and Strong
     markdown = markdown.replace(/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/gi, "**$2**");
     
     // Italic and Emphasis
@@ -288,55 +266,6 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/^\s*[•·▪▫◦‣⁃]\s*$/gm, ""); // Remove bullet points on their own lines
     markdown = markdown.replace(/^\s*["""'']\s*$/gm, ""); // Remove standalone quotes
     markdown = markdown.replace(/^\s*[～〜~]\s*$/gm, ""); // Remove decorative tildes
-    
-    // Clean up excessive asterisks and formatting artifacts
-    // Remove standalone asterisks on their own lines
-    markdown = markdown.replace(/^\s*\*+\s*$/gm, "");
-    
-    // Remove excessive asterisks in text (more than 4 consecutive)
-    markdown = markdown.replace(/\*{5,}/g, "**");
-    
-    // Clean up malformed bold formatting
-    markdown = markdown.replace(/\*\*\*\*([^*]+)\*\*\*\*/g, "**$1**");
-    markdown = markdown.replace(/\*\*\*([^*]+)\*\*\*/g, "**$1**");
-    
-    // Remove asterisks that are just decorative (not formatting)
-    // But preserve meaningful formatting like **text**
-    markdown = markdown.replace(/\*{6,}/g, ""); // Remove 6+ consecutive asterisks
-    
-    // Clean up specific patterns from your example
-    markdown = markdown.replace(/\*\*\*\*([^*\n]+)\*\*\*\*/g, "**$1**"); // ****text**** -> **text**
-    markdown = markdown.replace(/\*\*([^*\n]*?)\*\*\*\*([^*\n]*?)\*\*\*\*([^*\n]*?)\*\*/g, "**$1$2$3**"); // Complex patterns
-    
-    // Clean up empty bold/italic tags
-    markdown = markdown.replace(/\*\*\s*\*\*/g, "");
-    markdown = markdown.replace(/\*\s*\*/g, "");
-    
-    // Handle the specific pattern from your example: **text****other****text**
-    // Convert to proper bold formatting
-    markdown = markdown.replace(/\*\*([^*]+?)\*\*\*\*([^*]+?)\*\*\*\*([^*]+?)\*\*/g, "**$1** **$2** **$3**");
-    markdown = markdown.replace(/\*\*([^*]+?)\*\*\*\*([^*]+?)\*\*/g, "**$1** **$2**");
-    
-    // Remove standalone asterisks that are not part of markdown formatting
-    markdown = markdown.replace(/^(\s*)\*+(\s*)$/gm, "$1$2");
-    
-    // Clean up patterns like "****" at the beginning of lines
-    markdown = markdown.replace(/^\*{2,}/gm, "");
-    
-    // Handle specific WeChat teaching content patterns
-    // Convert colored text sections to proper headings
-    markdown = markdown.replace(/语音讲解/gi, '\n\n## 🎤 语音讲解\n\n');
-    markdown = markdown.replace(/词汇讲解/gi, '\n\n## 📖 词汇讲解\n\n');
-    markdown = markdown.replace(/MV欣赏/gi, '\n\n## 🎬 MV欣赏\n\n');
-    markdown = markdown.replace(/歌词欣赏/gi, '\n\n## 🎵 歌词欣赏\n\n');
-    
-    // Convert the decorative dots to a separator
-    markdown = markdown.replace(/[●○◦•]{3,}/g, '\n\n---\n\n');
-    
-    // Handle the final section with QR code info
-    markdown = markdown.replace(/陪伴是最长情的告白/gi, '\n\n### 💕 陪伴是最长情的告白\n\n');
-    markdown = markdown.replace(/每周六为你推送好听的英文歌曲/gi, '每周六为你推送好听的英文歌曲\n\n');
-    markdown = markdown.replace(/识别二维码\s*关注我们/gi, '**识别二维码，关注我们**');
     
     // Final cleanup of excessive newlines
     markdown = markdown.replace(/\n{3,}/g, "\n\n");
