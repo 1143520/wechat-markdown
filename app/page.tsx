@@ -301,8 +301,22 @@ export default function WechatToMarkdown() {
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 标题 */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">微信公众号文章转Markdown</h1>
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-4">
+            <a 
+              href="https://github.com/1143520/wechat-markdown" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity"
+            >
+              <img 
+                src="https://jsd.chatbtc.cn.eu.org/gh/manji1143/picx-images-hosting@master/paste/picx-%E6%B0%B4%E5%A2%A8%E7%94%BB-logo-%E8%AE%BE%E8%AE%A1.41ye3jxic1.webp" 
+                alt="微信转Markdown Logo" 
+                className="w-16 h-16 object-contain"
+              />
+            </a>
+            <h1 className="text-3xl font-bold text-foreground">微信公众号文章转Markdown</h1>
+          </div>
           <p className="text-muted-foreground">将微信公众号文章转换为Markdown格式，图片自动使用代理链接</p>
         </div>
 
