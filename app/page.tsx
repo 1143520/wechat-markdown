@@ -35,9 +35,10 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/<\/(div|section)>/gi, "</p>");
 
     // 3. Block-Level Element Conversion
-    // Headings (h1-h6) - Preserve inner formatting by converting it later
+    // Headings (h1-h6) - Clean inner HTML tags first
     markdown = markdown.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, content) => {
-      return "\n\n" + "#".repeat(Number.parseInt(level)) + " " + content.trim() + "\n\n";
+      const cleanContent = content.replace(/<[^>]+>/g, "").trim();
+      return "\n\n" + "#".repeat(Number.parseInt(level)) + " " + cleanContent + "\n\n";
     });
 
     // Paragraphs - Ensure they are separated by newlines
