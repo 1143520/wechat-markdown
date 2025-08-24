@@ -56,8 +56,8 @@ export default function WechatToMarkdown() {
         }
         
         const replacement = duration ? 
-          `\n\n🎵 **音频**：${name} (${duration})\n\n` : 
-          `\n\n🎵 **音频**：${name}\n\n`;
+          `\n\n🎵 **音频**：${name} (${duration})\n\n> ⚠️ 注意：微信音频无法在Markdown中播放，需要在原文中收听\n\n` : 
+          `\n\n🎵 **音频**：${name}\n\n> ⚠️ 注意：微信音频无法在Markdown中播放，需要在原文中收听\n\n`;
         markdown = markdown.replace(match, replacement);
       });
     } else {
@@ -77,8 +77,8 @@ export default function WechatToMarkdown() {
         const videoId = vidMatch ? vidMatch[1] : '';
         
         const videoInfo = videoId ? 
-          `\n\n📹 **腾讯视频**：${videoId}\n\n视频链接：${src}\n\n` :
-          `\n\n📹 **视频**：${src}\n\n`;
+          `\n\n📹 **腾讯视频**：${videoId}\n\n[🔗 点击播放视频](${src})\n\n> 💡 提示：点击上方链接在浏览器中播放视频\n\n` :
+          `\n\n📹 **视频**\n\n[🔗 点击播放视频](${src})\n\n> 💡 提示：点击上方链接在浏览器中播放视频\n\n`;
         
         markdown = markdown.replace(match, videoInfo);
       });
@@ -306,9 +306,11 @@ export default function WechatToMarkdown() {
       const data = await response.json()
 
       if (data.success) {
-        // 自动转换获取到的内容
+        // 自动转换获取到的内容，并添加原文链接
         const result = htmlToMarkdown(data.content)
-        setMarkdown(result)
+        const titleText = data.title ? `# ${data.title}\n\n` : ''
+        const sourceLink = `> 📖 **原文链接**：[点击查看原文](${inputUrl})\n\n> 💡 **提示**：音频、视频等多媒体内容请在原文中查看\n\n---\n\n`
+        setMarkdown(titleText + sourceLink + result)
         toast({
           title: "成功",
           description: `文章"${data.title}"获取并转换完成！`,
@@ -342,7 +344,8 @@ export default function WechatToMarkdown() {
     setIsLoading(true)
     try {
       const result = htmlToMarkdown(inputHtml)
-      setMarkdown(result)
+      const sourceHint = `> 💡 **提示**：如需添加原文链接，请手动编辑Markdown内容\n\n> 📝 **格式**：\`> 📖 **原文链接**：[点击查看原文](原文URL)\`\n\n---\n\n`
+      setMarkdown(sourceHint + result)
       toast({
         title: "成功",
         description: "转换完成！",
@@ -506,7 +509,7 @@ export default function WechatToMarkdown() {
                   </div>
                 )}
               </CardTitle>
-              <CardDescription>转换后的Markdown格式内容，图片已使用百度代理</CardDescription>
+              <CardDescription>转换后的Markdown格式内容，图片已使用代理链接，音频/视频转换为文本标记</CardDescription>
             </CardHeader>
             <CardContent>
               {markdown ? (
@@ -551,8 +554,10 @@ export default function WechatToMarkdown() {
               <h4 className="font-semibold">功能特点</h4>
               <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                 <li>支持直接从微信公众号链接获取文章内容</li>
+                <li>自动添加原文链接和标题（URL模式）</li>
                 <li>自动转换标题、段落、列表等格式</li>
-                <li>图片链接自动使用百度代理</li>
+                <li>图片链接自动使用代理，确保显示正常</li>
+                <li>音频/视频转换为文本标记和播放链接</li>
                 <li>保留文章的基本结构和格式</li>
                 <li>支持复制到剪贴板和下载文件</li>
                 <li>支持粗体、斜体、链接等样式</li>
