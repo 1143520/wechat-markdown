@@ -120,6 +120,21 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/<section[^>]*powered-by="xiumi\.us"[^>]*><\/section>/gi, "");
     markdown = markdown.replace(/<section[^>]*><svg[^>]*><\/svg><\/section>/gi, "");
     
+    // Handle special quote sections (like the lyrics container)
+    markdown = markdown.replace(
+      /<section[^>]*background-color:\s*rgb\(203,\s*222,\s*255\)[^>]*>(.*?)<\/section>/gis,
+      '\n\n> **歌词欣赏**\n\n> $1\n\n'
+    );
+    
+    // Handle the quote mark decoration
+    markdown = markdown.replace(/<section[^>]*font-size:\s*64px[^>]*>"<\/section>/gi, '\n\n---\n\n');
+    
+    // Convert special containers to proper sections
+    markdown = markdown.replace(
+      /<section[^>]*display:\s*inline-block[^>]*border[^>]*>(.*?)<\/section>/gis,
+      '\n\n### $1\n\n'
+    );
+    
     // Handle text decoration spans (underline, strikethrough)
     markdown = markdown.replace(/<span[^>]*text-decoration:\s*underline[^>]*>(.*?)<\/span>/gi, "$1");
     markdown = markdown.replace(/<span[^>]*text-decoration:\s*line-through[^>]*>(.*?)<\/span>/gi, "~~$1~~");
@@ -204,6 +219,13 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/<br\s*\/?>/gi, "\n");
 
     // 4. Inline Element Conversion (Done after blocks to preserve them)
+    // Handle text decorations BEFORE removing spans
+    // Strikethrough (删除线)
+    markdown = markdown.replace(/<span[^>]*text-decoration:\s*line-through[^>]*>(.*?)<\/span>/gi, "~~$1~~");
+    
+    // Underline - convert to bold since Markdown doesn't support underline
+    markdown = markdown.replace(/<span[^>]*text-decoration:\s*underline[^>]*>(.*?)<\/span>/gi, "**$1**");
+    
     // Images with proxy
     markdown = markdown.replace(
       /<img[^>]*src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi,
@@ -219,7 +241,7 @@ export default function WechatToMarkdown() {
     // Links
     markdown = markdown.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, "[$2]($1)");
 
-    // Bold and Strong
+    // Bold and Strong (handle nested spans)
     markdown = markdown.replace(/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/gi, "**$2**");
     
     // Italic and Emphasis
@@ -300,6 +322,21 @@ export default function WechatToMarkdown() {
     
     // Clean up patterns like "****" at the beginning of lines
     markdown = markdown.replace(/^\*{2,}/gm, "");
+    
+    // Handle specific WeChat teaching content patterns
+    // Convert colored text sections to proper headings
+    markdown = markdown.replace(/语音讲解/gi, '\n\n## 🎤 语音讲解\n\n');
+    markdown = markdown.replace(/词汇讲解/gi, '\n\n## 📖 词汇讲解\n\n');
+    markdown = markdown.replace(/MV欣赏/gi, '\n\n## 🎬 MV欣赏\n\n');
+    markdown = markdown.replace(/歌词欣赏/gi, '\n\n## 🎵 歌词欣赏\n\n');
+    
+    // Convert the decorative dots to a separator
+    markdown = markdown.replace(/[●○◦•]{3,}/g, '\n\n---\n\n');
+    
+    // Handle the final section with QR code info
+    markdown = markdown.replace(/陪伴是最长情的告白/gi, '\n\n### 💕 陪伴是最长情的告白\n\n');
+    markdown = markdown.replace(/每周六为你推送好听的英文歌曲/gi, '每周六为你推送好听的英文歌曲\n\n');
+    markdown = markdown.replace(/识别二维码\s*关注我们/gi, '**识别二维码，关注我们**');
     
     // Final cleanup of excessive newlines
     markdown = markdown.replace(/\n{3,}/g, "\n\n");
