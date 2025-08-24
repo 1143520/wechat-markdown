@@ -18,124 +18,209 @@ export default function WechatToMarkdown() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
+  // 辅助函数
+  const decodeHtmlEntities = (text: string): string => {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+  };
+
+  const stripHtml = (html: string): string => {
+    return html.replace(/<[^>]+>/g, '');
+  };
+
+  const cleanupMarkdown = (markdown: string, preserveWhitespace?: boolean): string => {
+    if (!preserveWhitespace) {
+      // 智能空白处理
+      markdown = markdown.replace(/\n{4,}/g, '\n\n\n');
+      markdown = markdown.replace(/^[ \t]+|[ \t]+$/gm, '');
+      
+      // 确保标题前后有适当的空行
+      markdown = markdown.replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2");
+      markdown = markdown.replace(/(#{1,6}\s[^\n]+)\n([^\n#])/g, "$1\n\n$2");
+      
+      // 确保列表前后有空行
+      markdown = markdown.replace(/([^\n])\n([*\-+]|\d+\.)\s/g, "$1\n\n$2 ");
+      markdown = markdown.replace(/([*\-+]|\d+\.)\s[^\n]+\n([^\n*\-+\d])/g, "$&\n$2");
+    }
+    return markdown;
+  };
+
+  const processCodeBlock = (block: string): string => {
+    const match = block.match(/<pre[^>]*>(?:<code[^>]*>)?(.*?)(?:<\/code>)?<\/pre>/is);
+    if (match) {
+      const content = decodeHtmlEntities(match[1]).trim();
+      return "\n\n```\n" + content + "\n```\n\n";
+    }
+    return block;
+  };
+
+  // 处理内联元素的函数
+  const processInlineElements = (text: string): string => {
+    // 处理代码
+    text = text.replace(/<code[^>]*>(.*?)<\/code>/gi, (_, content) => 
+      `\`${decodeHtmlEntities(content)}\``
+    );
+    
+    // 处理加粗和斜体（支持嵌套）
+    let oldText;
+    do {
+      oldText = text;
+      text = text.replace(/<(strong|b)(?:\s[^>]*)?>(.+?)<\/\1>/gi, "**$2**");
+      text = text.replace(/<(em|i)(?:\s[^>]*)?>(.+?)<\/\1>/gi, "*$2*");
+    } while (oldText !== text);
+    
+    // 处理链接
+    text = text.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, 
+      (_, href, content) => `[${stripHtml(content)}](${href})`
+    );
+    
+    return text;
+  };
+
+  const processList = (html: string, ordered: boolean = false): string => {
+    const listItems = html.match(/<li[^>]*>(.*?)<\/li>/gis);
+    if (!listItems) return "";
+
+    let result = "\n\n";
+    listItems.forEach((item, index) => {
+      const content = item.replace(/<li[^>]*>(.*?)<\/li>/is, "$1");
+      const processed = processInlineElements(content);
+      const cleaned = stripHtml(processed).trim();
+      
+      if (cleaned) {
+        const prefix = ordered ? `${index + 1}. ` : "- ";
+        result += prefix + cleaned + "\n";
+      }
+    });
+    
+    return result + "\n";
+  };
+
+  const processTable = (tableHtml: string): string => {
+    let tableMarkdown = "\n\n";
+    const rows = tableHtml.match(/<tr[^>]*>(.*?)<\/tr>/gis);
+    
+    if (rows) {
+      rows.forEach((row, index) => {
+        const cells = row.match(/<t[hd][^>]*>(.*?)<\/t[hd]>/gis);
+        if (cells) {
+          const cellContents = cells.map((cell) => {
+            const content = cell.replace(/<t[hd][^>]*>(.*?)<\/t[hd]>/is, "$1");
+            const processed = processInlineElements(content);
+            return stripHtml(processed).trim();
+          });
+          
+          tableMarkdown += "| " + cellContents.join(" | ") + " |\n";
+          
+          if (index === 0) {
+            tableMarkdown += "| " + cellContents.map(() => "---").join(" | ") + " |\n";
+          }
+        }
+      });
+    }
+    
+    return tableMarkdown + "\n";
+  };
+
   // 将HTML转换为Markdown
-  const htmlToMarkdown = (html: string): string => {
-    let markdown = html
+  const htmlToMarkdown = (html: string, options?: {
+    imageProxy?: (src: string) => string;
+    preserveWhitespace?: boolean;
+  }): string => {
+    // 1. 预处理：保护需要保留的内容
+    const codeBlocks: string[] = [];
+    let markdown = html.replace(/<pre[^>]*>.*?<\/pre>/gis, (match) => {
+      codeBlocks.push(match);
+      return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+    });
 
-    // 移除style属性和script标签
-    markdown = markdown.replace(/<script[^>]*>.*?<\/script>/gis, "")
-    markdown = markdown.replace(/\sstyle="[^"]*"/gi, "")
-    markdown = markdown.replace(/\sclass="[^"]*"/gi, "")
-    markdown = markdown.replace(/\sid="[^"]*"/gi, "")
-
-    // 处理微信的section标签为div
-    markdown = markdown.replace(/<\/?section[^>]*>/gi, "")
-
+    // 2. 清理无用标签和属性
+    markdown = markdown.replace(/<script[^>]*>.*?<\/script>/gis, "");
+    markdown = markdown.replace(/<style[^>]*>.*?<\/style>/gis, "");
+    markdown = markdown.replace(/\s(style|class|id)="[^"]*"/gi, "");
+    
+    // 处理微信的section标签
+    markdown = markdown.replace(/<\/?section[^>]*>/gi, "");
+    
     // 处理div标签 - 微信文章常用div分段
-    markdown = markdown.replace(/<div[^>]*>(.*?)<\/div>/gis, "$1\n\n")
+    markdown = markdown.replace(/<div[^>]*>(.*?)<\/div>/gis, "$1\n\n");
 
+    // 3. 从内到外处理内联元素（使用外部定义的函数）
+
+    // 4. 处理块级元素
+    // 标题
+    markdown = markdown.replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi, (_, level, content) => {
+      const processed = processInlineElements(content);
+      const cleaned = stripHtml(processed);
+      return "\n\n" + "#".repeat(parseInt(level)) + " " + cleaned + "\n\n";
+    });
+
+    // 图片处理（保持原有的代理逻辑）
     markdown = markdown.replace(
       /<img[^>]*src=["']([^"']+)["'][^>]*(?:alt=["']([^"']*)["'])?[^>]*>/gi,
       (match, src, alt) => {
+        if (options?.imageProxy) {
+          const proxyUrl = options.imageProxy(src);
+          return `![${alt || "图片"}](${proxyUrl})`;
+        }
+        
         // 如果图片已经是代理链接，直接使用
         if (src.includes("image.baidu.com")) {
-          return `![${alt || "图片"}](${src})`
+          return `![${alt || "图片"}](${src})`;
         }
-        const proxyUrl = `https://image.baidu.com/search/down?thumburl=${encodeURIComponent(src)}`
-        return `![${alt || "图片"}](${proxyUrl})`
-      },
-    )
-
-    markdown = markdown.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, content) => {
-      const cleanContent = content.replace(/<[^>]+>/g, "").trim()
-      return "#".repeat(Number.parseInt(level)) + " " + cleanContent + "\n\n"
-    })
-
-    markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gis, (match, content) => {
-      // 清理段落内的span等标签，保留格式标签
-      const cleanContent = content
-        .replace(/<span[^>]*>(.*?)<\/span>/gi, "$1")
-        .replace(/<font[^>]*>(.*?)<\/font>/gi, "$1")
-        .trim()
-
-      if (cleanContent) {
-        return cleanContent + "\n\n"
+        const proxyUrl = `https://image.baidu.com/search/down?thumburl=${encodeURIComponent(src)}`;
+        return `![${alt || "图片"}](${proxyUrl})`;
       }
-      return ""
-    })
+    );
+
+    // 段落
+    markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gis, (_, content) => {
+      const processed = processInlineElements(content);
+      const cleaned = processed.replace(/<span[^>]*>(.*?)<\/span>/gi, "$1")
+                                .replace(/<font[^>]*>(.*?)<\/font>/gi, "$1")
+                                .trim();
+      return cleaned ? "\n\n" + cleaned + "\n\n" : "";
+    });
 
     // 处理换行
-    markdown = markdown.replace(/<br\s*\/?>/gi, "\n")
+    markdown = markdown.replace(/<br\s*\/?>/gi, "\n");
 
-    markdown = markdown.replace(/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/gi, "**$2**")
-    markdown = markdown.replace(/<(em|i)[^>]*>(.*?)<\/(em|i)>/gi, "*$2*")
-
-    markdown = markdown.replace(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (match, href, text) => {
-      const cleanText = text.replace(/<[^>]+>/g, "").trim()
-      return `[${cleanText}](${href})`
-    })
-
+    // 5. 处理列表
     markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, content) => {
-      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
-        const cleanContent = liContent.replace(/<[^>]+>/g, "").trim()
-        return cleanContent ? `- ${cleanContent}\n` : ""
-      })
-      return items ? items + "\n" : ""
-    })
+      return processList(content, false);
+    });
 
     markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
-      let counter = 1
-      const items = content.replace(/<li[^>]*>(.*?)<\/li>/gis, (liMatch, liContent) => {
-        const cleanContent = liContent.replace(/<[^>]+>/g, "").trim()
-        return cleanContent ? `${counter++}. ${cleanContent}\n` : ""
-      })
-      return items ? items + "\n" : ""
-    })
+      return processList(content, true);
+    });
 
-    markdown = markdown.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gis, (match, content) => {
-      const cleanContent = content.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim()
-      return "```\n" + cleanContent + "\n```\n\n"
-    })
-
-    markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, (match, content) => {
-      const cleanContent = content.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
-      return `\`${cleanContent}\``
-    })
-
-    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, (match, content) => {
-      const cleanContent = content.replace(/<[^>]+>/g, "").trim()
-      return cleanContent ? `> ${cleanContent}\n\n` : ""
-    })
-
+    // 6. 处理表格
     markdown = markdown.replace(/<table[^>]*>(.*?)<\/table>/gis, (match, content) => {
-      // 简单的表格处理，将表格转换为Markdown格式
-      let tableMarkdown = "\n"
-      const rows = content.match(/<tr[^>]*>(.*?)<\/tr>/gis)
-      if (rows) {
-        rows.forEach((row, index) => {
-          const cells = row.match(/<t[hd][^>]*>(.*?)<\/t[hd]>/gis)
-          if (cells) {
-            const cellContents = cells.map((cell) =>
-              cell
-                .replace(/<t[hd][^>]*>(.*?)<\/t[hd]>/gis, "$1")
-                .replace(/<[^>]+>/g, "")
-                .trim(),
-            )
-            tableMarkdown += "| " + cellContents.join(" | ") + " |\n"
-            if (index === 0) {
-              tableMarkdown += "| " + cellContents.map(() => "---").join(" | ") + " |\n"
-            }
-          }
-        })
-      }
-      return tableMarkdown + "\n"
-    })
+      return processTable(content);
+    });
 
-    markdown = markdown.replace(/<hr[^>]*>/gi, "\n---\n\n")
+    // 处理引用
+    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, (match, content) => {
+      const processed = processInlineElements(content);
+      const cleaned = stripHtml(processed).trim();
+      return cleaned ? `\n\n> ${cleaned}\n\n` : "";
+    });
+
+    // 处理水平分割线
+    markdown = markdown.replace(/<hr[^>]*>/gi, "\n\n---\n\n");
+
+    // 7. 恢复代码块
+    codeBlocks.forEach((block, index) => {
+      markdown = markdown.replace(`__CODE_BLOCK_${index}__`, 
+        processCodeBlock(block)
+      );
+    });
 
     // 清理剩余的HTML标签
-    markdown = markdown.replace(/<[^>]+>/g, "")
+    markdown = markdown.replace(/<[^>]+>/g, "");
 
+    // HTML实体解码
     const htmlEntities: { [key: string]: string } = {
       "&nbsp;": " ",
       "&lt;": "<",
@@ -153,29 +238,17 @@ export default function WechatToMarkdown() {
       "&copy;": "©",
       "&reg;": "®",
       "&trade;": "™",
-    }
+    };
 
     Object.entries(htmlEntities).forEach(([entity, char]) => {
-      markdown = markdown.replace(new RegExp(entity, "g"), char)
-    })
+      markdown = markdown.replace(new RegExp(entity, "g"), char);
+    });
 
-    // 移除行首行尾空白
-    markdown = markdown.replace(/^[ \t]+|[ \t]+$/gm, "")
-
-    // 处理多余的空行，但保留必要的段落分隔
-    markdown = markdown.replace(/\n{4,}/g, "\n\n\n")
-    markdown = markdown.replace(/\n{3}/g, "\n\n")
-
-    // 确保标题前后有适当的空行
-    markdown = markdown.replace(/([^\n])\n(#{1,6}\s)/g, "$1\n\n$2")
-    markdown = markdown.replace(/(#{1,6}\s[^\n]+)\n([^\n#])/g, "$1\n\n$2")
-
-    // 确保列表前后有空行
-    markdown = markdown.replace(/([^\n])\n([*\-+]|\d+\.)\s/g, "$1\n\n$2 ")
-    markdown = markdown.replace(/([*\-+]|\d+\.)\s[^\n]+\n([^\n*\-+\d])/g, "$&\n$2")
-
-    return markdown.trim()
-  }
+    // 8. 最终清理
+    markdown = cleanupMarkdown(markdown, options?.preserveWhitespace);
+    
+    return markdown.trim();
+  };
 
   // 从URL获取文章内容
   const fetchFromUrl = async () => {
@@ -315,7 +388,7 @@ export default function WechatToMarkdown() {
                 className="w-16 h-16 object-contain"
               />
             </a>
-            <h1 className="text-3xl font-bold text-foreground">微信公众号文章转Markdown</h1>
+          <h1 className="text-3xl font-bold text-foreground">微信公众号文章转Markdown</h1>
           </div>
           <p className="text-muted-foreground">将微信公众号文章转换为Markdown格式，图片自动使用代理链接</p>
         </div>
