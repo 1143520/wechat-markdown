@@ -56,8 +56,8 @@ export default function WechatToMarkdown() {
         }
         
         const replacement = duration ? 
-          `\n\n🎵 **音频**：${name} (${duration})\n\n> ⚠️ 注意：微信音频无法在Markdown中播放，需要在原文中收听\n\n` : 
-          `\n\n🎵 **音频**：${name}\n\n> ⚠️ 注意：微信音频无法在Markdown中播放，需要在原文中收听\n\n`;
+          `\n\n🎵 **音频**：${name} (${duration})\n\n> ·· 注意：微信音频无法在Markdown中播放，需要在原文中收听\n\n` : 
+          `\n\n🎵 **音频**：${name}\n\n> ·· 注意：微信音频无法在Markdown中播放，需要在原文中收听\n\n`;
         markdown = markdown.replace(match, replacement);
       });
     } else {
@@ -77,8 +77,8 @@ export default function WechatToMarkdown() {
         const videoId = vidMatch ? vidMatch[1] : '';
         
         const videoInfo = videoId ? 
-          `\n\n📹 **腾讯视频**：${videoId}\n\n[🔗 点击播放视频](${src})\n\n> 💡 提示：点击上方链接在浏览器中播放视频\n\n` :
-          `\n\n📹 **视频**\n\n[🔗 点击播放视频](${src})\n\n> 💡 提示：点击上方链接在浏览器中播放视频\n\n`;
+          `\n\n📹 **腾讯视频**：${videoId}\n\n[🔗 点击播放视频](${src})\n\n> ·· 提示：点击上方链接在浏览器中播放视频\n\n` :
+          `\n\n📹 **视频**\n\n[🔗 点击播放视频](${src})\n\n> ·· 提示：点击上方链接在浏览器中播放视频\n\n`;
         
         markdown = markdown.replace(match, videoInfo);
       });
@@ -328,7 +328,7 @@ export default function WechatToMarkdown() {
         // 自动转换获取到的内容，并添加原文链接
         const result = htmlToMarkdown(data.content)
         const titleText = data.title ? `# ${data.title}\n\n` : ''
-        const sourceLink = `> 📖 **原文链接**：[点击查看原文](${inputUrl})\n\n> 💡 **提示**：音频、视频等多媒体内容请在原文中查看\n\n---\n\n`
+        const sourceLink = `> ·· **原文链接**：[点击查看原文](${inputUrl})\n\n> ·· **提示**：音频、视频等多媒体内容请在原文中查看\n\n---\n\n`
         setMarkdown(titleText + sourceLink + result)
         toast({
           title: "成功",
@@ -363,7 +363,7 @@ export default function WechatToMarkdown() {
     setIsLoading(true)
     try {
       const result = htmlToMarkdown(inputHtml)
-      const sourceHint = `> 💡 **提示**：如需添加原文链接，请手动编辑Markdown内容\n\n> 📝 **格式**：\`> 📖 **原文链接**：[点击查看原文](原文URL)\`\n\n---\n\n`
+      const sourceHint = `> ·· **提示**：如需添加原文链接，请手动编辑Markdown内容\n\n> ·· **格式**：\`> ·· **原文链接**：[点击查看原文](原文URL)\`\n\n---\n\n`
       setMarkdown(sourceHint + result)
       toast({
         title: "成功",
