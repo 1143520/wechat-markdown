@@ -240,6 +240,16 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/nodeleaf="[^"]*"/gi, "");
     markdown = markdown.replace(/leaf="[^"]*"/gi, "");
     
+    // Clean up excessive formatting marks from WeChat text decorations
+    // Remove excessive asterisks that come from text decorations
+    markdown = markdown.replace(/\*{3,}/g, "**"); // Replace 3+ asterisks with double asterisks
+    markdown = markdown.replace(/\*\*\*\*/g, "**"); // Replace quadruple asterisks with double
+    
+    // Clean up standalone asterisks and formatting artifacts
+    markdown = markdown.replace(/^\*+\s*$/gm, ""); // Remove lines with only asterisks
+    markdown = markdown.replace(/\*\*\s*\*\*/g, ""); // Remove empty bold markers
+    markdown = markdown.replace(/\*\s*\*/g, ""); // Remove empty italic markers
+    
     // Remove excessive whitespace and empty lines from complex layouts
     markdown = markdown.replace(/^\s*$/gm, ""); // Remove empty lines
     markdown = markdown.replace(/\n\s*\n\s*\n/g, "\n\n"); // Collapse multiple newlines
@@ -266,6 +276,15 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/^\s*[•·▪▫◦‣⁃]\s*$/gm, ""); // Remove bullet points on their own lines
     markdown = markdown.replace(/^\s*["""'']\s*$/gm, ""); // Remove standalone quotes
     markdown = markdown.replace(/^\s*[～〜~]\s*$/gm, ""); // Remove decorative tildes
+    
+    // Additional cleanup for WeChat formatting artifacts
+    markdown = markdown.replace(/\*\*\s*\*\*\s*\*\*/g, ""); // Remove triple empty bold markers
+    markdown = markdown.replace(/(\*\*[^*]+\*\*)\*+/g, "$1"); // Remove trailing asterisks after bold text
+    markdown = markdown.replace(/\*+(\*\*[^*]+\*\*)/g, "$1"); // Remove leading asterisks before bold text
+    
+    // Clean up broken formatting from text decorations
+    markdown = markdown.replace(/\*\*([^*]*)\*\*\*\*([^*]*)\*\*/g, "**$1$2**"); // Fix broken bold spans
+    markdown = markdown.replace(/\*([^*]*)\*\*([^*]*)\*/g, "*$1$2*"); // Fix broken italic spans
     
     // Final cleanup of excessive newlines
     markdown = markdown.replace(/\n{3,}/g, "\n\n");
