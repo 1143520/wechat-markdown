@@ -30,16 +30,34 @@ export default function WechatToMarkdown() {
     markdown = markdown.replace(/\s(style|class|id)="[^"]*"/gi, "");
 
     // 1.5. Handle WeChat-specific components BEFORE structural conversion
-    // Handle WeChat audio components
-    markdown = markdown.replace(
-      /<mp-common-mpaudio[^>]*name=["']([^"']+)["'][^>]*play_length=["']([^"']+)["'][^>]*>/gi,
-      '\n\n🎵 **音频**：$1 ($2)\n\n'
-    );
+    // Extract audio info first, then remove the tags
+    let audioMatches = html.match(/<mp-common-mpaudio[^>]*>/gi);
+    if (audioMatches) {
+      audioMatches.forEach(match => {
+        const nameMatch = match.match(/name=["']([^"']+)["']/i);
+        const lengthMatch = match.match(/play_length=["']([^"']+)["']/i);
+        const name = nameMatch ? nameMatch[1] : '未知音频';
+        const length = lengthMatch ? lengthMatch[1] : '';
+        const replacement = length ? 
+          `\n\n🎵 **音频**：${name} (${length})\n\n` : 
+          `\n\n🎵 **音频**：${name}\n\n`;
+        markdown = markdown.replace(match, replacement);
+      });
+    }
+    
+    // Remove any remaining mp-common-mpaudio tags
+    markdown = markdown.replace(/<\/?mp-common-mpaudio[^>]*>/gi, '');
 
     // Handle video iframes
     markdown = markdown.replace(
       /<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/gi,
       '\n\n📹 **视频**：$1\n\n'
+    );
+    
+    // Handle video containers
+    markdown = markdown.replace(
+      /<span[^>]*class="js_tx_video_container"[^>]*>/gi,
+      '\n\n📹 **视频播放器**\n\n'
     );
 
     // Handle WeChat profile components
